@@ -113,3 +113,30 @@ public final class RouterService: RouterServiceProtocol, RouterServiceRegistrati
         return registeredRoutes[routeIdentifier]?.1
     }
 }
+
+extension RouterService: RouterServiceAnyRouteDecodingProtocol {
+    public func decodeAnyRoute(fromDecoder decoder: Decoder) throws -> (Route, String) {
+        let container = try decoder.singleValueContainer()
+        let identifier = try container.decode(String.self)
+
+        guard let routeString = RouteString(fromString: identifier) else {
+            throw RouteDecodingError.failedToParseRouteString
+        }
+
+        guard let routeType = registeredRoutes[routeString.scheme]?.0 else {
+            throw RouteDecodingError.unregisteredRoute
+        }
+
+        do {
+            let value = try routeType.decode(JSONDecoder(), routeString.parameterData)
+            return (value, routeString.originalString)
+        } catch {
+            throw error
+        }
+    }
+
+    public enum RouteDecodingError: Swift.Error {
+        case unregisteredRoute
+        case failedToParseRouteString
+    }
+}
